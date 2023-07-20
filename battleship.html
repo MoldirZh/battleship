@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.js"></script>
+    <style>
+      .container {
+        display: grid;
+        grid-template-columns: auto auto;
+        width: 80%;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="container"></div>
+    <script>
+      class Field {
+        table;
+        constructor() {
+          this.table = $("<table></table>");
+        }
+        createTable() {
+          let myThis = this;
+          let row, cell;
+          this.table.css({ margin: "50px 50px" });
+          let arr = [".", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J"];
+          for (let i = 0; i < 11; i++) {
+            row = $("<tr></tr>");
+            for (let j = 0; j < 11; j++) {
+              cell = $("<td></td>");
+              cell.css({
+                width: "20px",
+                height: "20px",
+                border: "1px solid black",
+                "text-align": "center",
+              });
+              if (i == 0) cell.text(arr[j]);
+              else if (j == 0) cell.text(i);
+              row.append(cell);
+            }
+            this.table.append(row);
+          }
+          $(".container").append(this.table);
+          return this.table;
+        }
+        #place(free, occupied, randomValDir, randomValPos, size, direction) {
+          let iValues = [];
+          //i's values differ according to direction
+          if (direction == "east" || direction == "south") {
+            for (
+              let i = randomValDir, j = 0;
+              i < randomValDir + size, j < size;
+              i++, j++
+            )
+              iValues[j] = i;
+          } else {
+            for (
+              let i = randomValDir, j = 0;
+              i < randomValDir - size, j < size;
+              i--, j++
+            )
+              iValues[j] = i;
+          }
+          let position,
+            order = [];
+          //get position and order of coloring by direction
+          function getPosOrder(randomValPos, i) {
+            if (direction == "east" || direction == "west") {
+              position = (randomValPos - 1) * 10 + i - 1;
+              order[0] = randomValPos;
+              order[1] = i;
+            } else {
+              position = (i - 1) * 10 + (randomValPos - 1);
+              order[0] = i;
+              order[1] = randomValPos;
+            }
+            return { position, order };
+          }
+
+          //first check if all positions are free. If not, return -1
+          for (let i in iValues) {
+            let myPosition = getPosOrder(randomValPos, iValues[i]);
+            let index = free.indexOf(myPosition.position);
+            if (index == -1) return -1;
+          }
+          //remove given positions from free and add to occupied.Color the cell in table
+          for (let i in iValues) {
+            let myPosition = getPosOrder(randomValPos, iValues[i]);
+            let index = free.indexOf(myPosition.position);
+            free.splice(index, 1);
+            this.table[0].rows[myPosition.order[0]].cells[
+              myPosition.order[1]
+            ].style.backgroundColor = "green";
+            occupied.push(myPosition.position);
+          }
+          //add space around the positions
+          for (let i in iValues) {
+            let myPosition = getPosOrder(randomValPos, iValues[i]);
+            let row = Math.floor(myPosition.position / 10) + 1;
+            let column = (myPosition.position % 10) + 1;
+
+            function removeNeighbors(dir, newRow, newColumn) {
+              let newPosition = (newRow - 1) * 10 + (newColumn - 1);
+              let index = free.indexOf(newPosition);
+              if (index != -1) free.splice(index, 1);
+            }
+            removeNeighbors("n", row - 1, column);
+            removeNeighbors("s", row + 1, column);
+            removeNeighbors("e", row, column + 1);
+            removeNeighbors("w", row, column - 1);
+            // removeNeighbors('w', row - 1, column - 1);
+            // removeNeighbors('e', row - 1, column + 1);
+            // removeNeighbors('w', row + 1, column - 1);
+            // removeNeighbors('e', row + 1, column + 1);
+          }
+          return { free, occupied };
+        }
+        #placeBattleship(free, size) {
+          let randomLocation = 1 + Math.floor(Math.random() * free.length);
+          let randomRow = Math.floor(randomLocation / 10) + 1;
+          let randomColumn = (randomLocation % 10) + 1;
+
+          let direction = ["e", "s"];
+          let randomDirection = Math.floor(Math.random() * direction.length);
+
+          let myThis = this;
+          let occupied = [];
+
+          let returnVal;
+          //generate random direction and position. Get size of the ship and place it if space is available
+          if (randomDirection == 0) {
+            if (randomColumn <= 10 - size) {
+              returnVal = myThis.#place(
+                free,
+                occupied,
+                randomColumn,
+                randomRow,
+                size,
+                "east"
+              );
+            } else {
+              returnVal = myThis.#place(
+                free,
+                occupied,
+                randomColumn,
+                randomRow,
+                size,
+                "west"
+              );
+            }
+          } else {
+            if (randomRow <= 10 - size) {
+              returnVal = myThis.#place(
+                free,
+                occupied,
+                randomRow,
+                randomColumn,
+                size,
+                "south"
+              );
+            } else {
+              returnVal = myThis.#place(
+                free,
+                occupied,
+                randomRow,
+                randomColumn,
+                size,
+                "north"
+              );
+            }
+          }
+          return returnVal == -1 ? -1 : { free, occupied };
+        }
+        placeBattleships() {
+          let free = [];
+          for (let i = 0; i < 100; i++) free[i] = i;
+          let totalOccupied = [];
+          let myThis = this;
+          function place(size) {
+            let ret = -1;
+            let myPlace;
+            while (ret == -1) {
+              myPlace = myThis.#placeBattleship(free, size);
+              if (myPlace != -1) ret = 1;
+            }
+            return myPlace;
+          }
+          let arr = place(4); //four_funnel (4) - 1 unit
+          totalOccupied.push(arr.occupied);
+          for (let i = 0; i < 2; i++) {
+            //three_funnel (3) - 2 units
+            let arr = place(3);
+            totalOccupied.push(arr.occupied);
+          }
+          for (let i = 0; i < 3; i++) {
+            //three_funnel (2) - 3 units
+            let arr = place(2);
+            totalOccupied.push(arr.occupied);
+          }
+          for (let i = 0; i < 4; i++) {
+            //three_funnel (1) - 4 units
+            let arr = place(1);
+            totalOccupied.push(arr.occupied);
+          }
+          return { free, totalOccupied };
+        }
+      }
+
+      class Human {
+        constructor(table2, table3, arr) {
+          this.table2 = table2;
+          this.table3 = table3;
+          this.arr = arr;
+          this.type = "human";
+          this.positionArr = [];
+          for (let i = 0; i < 100; i++) this.positionArr[i] = i;
+        }
+        play() {
+          let myThis = this;
+          return new Promise(function (resolve, reject) {
+            $(myThis.table2[0]).click(function () {
+              let cell = event.target.closest("td");
+              let row = cell.parentElement;
+              const position = (row.rowIndex - 1) * 10 + (cell.cellIndex - 1);
+              if (myThis.positionArr.indexOf(position) != -1)
+                myThis.positionArr.splice(
+                  myThis.positionArr.indexOf(position),
+                  1
+                );
+              for (let i in myThis.arr.totalOccupied) {
+                if (myThis.arr.totalOccupied[i].indexOf(position) != -1) {
+                  //hit, keep current player
+                  myThis.table2[0].rows[row.rowIndex].cells[
+                    cell.cellIndex
+                  ].style.backgroundColor = "red";
+                  myThis.table3[0].rows[row.rowIndex].cells[
+                    cell.cellIndex
+                  ].style.backgroundColor = "red";
+                  resolve("hit");
+                  return;
+                }
+              }
+              myThis.table2[0].rows[row.rowIndex].cells[
+                cell.cellIndex
+              ].style.backgroundColor = "gray";
+              myThis.table3[0].rows[row.rowIndex].cells[
+                cell.cellIndex
+              ].style.backgroundColor = "gray";
+              resolve("miss"); //miss, switch player
+              return;
+            });
+          });
+        }
+      }
+
+      class AI {
+        constructor(table1, table4, arr, speed, player) {
+          this.table1 = table1;
+          this.table4 = table4;
+          this.arr = arr;
+          this.speed = speed;
+          this.player = player; //used in history
+          this.type = "ai";
+          this.dir = [];
+          this.positionArr = [];
+          for (let i = 0; i < 100; i++) this.positionArr[i] = i;
+          this.continueHitting = false;
+          this.shootAgain = false;
+        }
+        shoot(location, row, column) {
+          let myThis = this;
+          let event = new CustomEvent("ai", {
+            detail: { row: row, column: column, player: myThis.player },
+          });
+          document.dispatchEvent(event);
+          for (let i in myThis.arr.totalOccupied) {
+            let myArr = myThis.arr.totalOccupied[i];
+            if (myArr.indexOf(location) != -1) {
+              myThis.table1[0].rows[row].cells[column].style.backgroundColor =
+                "red";
+              myThis.table4[0].rows[row].cells[column].style.backgroundColor =
+                "red";
+              return "hit";
+            }
+          }
+          myThis.table1[0].rows[row].cells[column].style.backgroundColor =
+            "gray";
+          myThis.table4[0].rows[row].cells[column].style.backgroundColor =
+            "gray";
+          return "miss";
+        }
+        improveAI() {
+          //if the ship was sunk, we don't want to hit its neighbors randomly,
+          //since we don't place ships right next to each other
+          let myThis = this;
+          let count = 0;
+          for (let i in myThis.arr.totalOccupied) {
+            let myArr = myThis.arr.totalOccupied[i];
+            for (let j in myArr) {
+              if (myThis.positionArr.indexOf(myArr[j]) == -1) {
+                count++;
+              } else {
+                break;
+              }
+            }
+            if (count == myArr.length) {
+              //ship is sunk now
+              for (let j in myArr) {
+                if (myThis.positionArr.indexOf(myArr[j] - 10) != -1) {
+                  myThis.positionArr.splice(
+                    myThis.positionArr.indexOf(myArr[j] - 10),
+                    1
+                  );
+                }
+                if (myThis.positionArr.indexOf(myArr[j] + 10) != -1) {
+                  myThis.positionArr.splice(
+                    myThis.positionArr.indexOf(myArr[j] + 10),
+                    1
+                  );
+                }
+                if (myThis.positionArr.indexOf(myArr[j] - 10) != -1) {
+                  myThis.positionArr.splice(
+                    myThis.positionArr.indexOf(myArr[j] - 1),
+                    1
+                  );
+                }
+                if (myThis.positionArr.indexOf(myArr[j] + 1) != -1) {
+                  myThis.positionArr.splice(
+                    myThis.positionArr.indexOf(myArr[j] + 1),
+                    1
+                  );
+                }
+              }
+            }
+            count = 0;
+          }
+        }
+        play() {
+          let myThis = this;
+          return new Promise(function (resolve, reject) {
+            setTimeout(function () {
+              //if previous shot was a hit, then we have to keep hitting its neighbors to sink the ship
+              //else, shoot a random direction
+              //use continueHitting to indicate if we want to keep shooting neighbors
+              if (myThis.continueHitting == false) {
+                let random = Math.floor(
+                  Math.random() * myThis.positionArr.length
+                );
+                let randomLocation = myThis.positionArr[random];
+                let randomRow = Math.floor(randomLocation / 10) + 1;
+                let randomColumn = (randomLocation % 10) + 1;
+                let index = myThis.positionArr.indexOf(randomLocation);
+
+                if (index != -1) {
+                  //shoot this randomLocation only if it was not shot before
+                  let shot = myThis.shoot(
+                    randomLocation,
+                    randomRow,
+                    randomColumn
+                  );
+                  myThis.positionArr.splice(index, 1);
+                  if (shot == "hit") {
+                    //hit, find its neighbors
+                    function checkNeighbors(newRow, newColumn) {
+                      let newPosition = (newRow - 1) * 10 + (newColumn - 1);
+                      let index;
+                      if (newColumn - 1 == -1) index = -1; //edge
+                      else if (newColumn - 1 == 10) index = -1; //also edge
+                      else index = myThis.positionArr.indexOf(newPosition);
+                      return { index, newPosition };
+                    }
+                    let north = checkNeighbors(randomRow - 1, randomColumn);
+                    if (
+                      north.index != -1 &&
+                      myThis.positionArr.indexOf(north.newPosition) != -1
+                    )
+                      myThis.dir.push(["n", north.newPosition]);
+                    let south = checkNeighbors(randomRow + 1, randomColumn);
+                    if (
+                      south.index != -1 &&
+                      myThis.positionArr.indexOf(south.newPosition) != -1
+                    )
+                      myThis.dir.push(["s", south.newPosition]);
+                    let east = checkNeighbors(randomRow, randomColumn + 1);
+                    if (
+                      east.index != -1 &&
+                      myThis.positionArr.indexOf(east.newPosition) != -1
+                    )
+                      myThis.dir.push(["e", east.newPosition]);
+                    let west = checkNeighbors(randomRow, randomColumn - 1);
+                    if (
+                      west.index != -1 &&
+                      myThis.positionArr.indexOf(west.newPosition) != -1
+                    )
+                      myThis.dir.push(["w", west.newPosition]);
+
+                    //random location may not have neighbors, if so, choose another random location. But we mark it as exception, so that we count it as hit below. If random location has neighbors, we set continueHitting to true to keep looking for neighbors
+                    if (myThis.dir.length > 0) {
+                      myThis.continueHitting = true;
+                    } else {
+                      myThis.continueHitting = false;
+                    }
+                  } else {
+                    myThis.continueHitting = false;
+                  }
+                  myThis.shootAgain = false;
+                  resolve(shot);
+                } else {
+                  myThis.shootAgain = true;
+                  myThis.continueHitting = false;
+                  resolve("miss"); //make sure that we keep tyring random locations that were not shot before
+                }
+              } else {
+                //previous shot was hit, so have to sink ship completely
+                let randomDirection = Math.floor(
+                  Math.random() * myThis.dir.length
+                );
+                let location = myThis.dir[randomDirection][1];
+                let row = Math.floor(location / 10) + 1;
+                let column = (location % 10) + 1;
+                let shot = myThis.shoot(location, row, column);
+                let index = myThis.positionArr.indexOf(location);
+                myThis.positionArr.splice(index, 1);
+                //we want to keep exploring the direction which was hit
+                //e.g., if shot to north was hit, some other parts of the ship might be to its north
+                //ships are only vertical or horizontal though, so I remove east and west, if north or south was hit and vice versa
+                function removeFromDir(first, second) {
+                  let temp = [];
+                  for (let x in myThis.dir) {
+                    if (
+                      myThis.dir[x][0] == first ||
+                      myThis.dir[x][0] == second
+                    ) {
+                      temp.push(x);
+                    }
+                  }
+                  for (let i = temp.length - 1; i >= 0; i--) {
+                    myThis.dir.splice(temp[i], 1);
+                  }
+                  temp = [];
+                }
+                if (shot == "hit") {
+                  //hit
+                  if (
+                    myThis.dir[randomDirection][0] == "n" &&
+                    myThis.positionArr.indexOf(location - 10) != -1
+                  ) {
+                    myThis.dir.push(["n", location - 10]);
+                    removeFromDir("e", "w");
+                  } else if (
+                    myThis.dir[randomDirection][0] == "s" &&
+                    myThis.positionArr.indexOf(location + 10) != -1
+                  ) {
+                    myThis.dir.push(["s", location + 10]);
+                    removeFromDir("e", "w");
+                  } else if (
+                    myThis.dir[randomDirection][0] == "e" &&
+                    myThis.positionArr.indexOf(location + 1) != -1
+                  ) {
+                    myThis.dir.push(["e", location + 1]);
+                    removeFromDir("n", "s");
+                  } else if (
+                    myThis.dir[randomDirection][0] == "w" &&
+                    myThis.positionArr.indexOf(location - 1) != -1
+                  ) {
+                    myThis.dir.push(["w", location - 1]);
+                    removeFromDir("n", "s");
+                  }
+                }
+                let myIndex;
+                for (let ind in myThis.dir) {
+                  if (myThis.dir[ind][1] == location) myIndex = ind;
+                }
+                myThis.dir.splice(myIndex, 1);
+                if (myThis.dir.length == 0) myThis.continueHitting = false;
+                else myThis.continueHitting = true;
+                myThis.shootAgain = false;
+                resolve(shot);
+              }
+            }, myThis.speed);
+          });
+        }
+      }
+
+      class Game {
+        constructor() {
+          this.field1Player;
+          this.field1Opponent;
+          this.field2Player;
+          this.field2Opponent;
+          this.table1;
+          this.table2;
+          this.table3;
+          this.table4;
+          this.arr1;
+          this.arr2;
+          this.myPlayer1;
+          this.myPlayer2;
+          this.speed;
+        }
+        createStartMenu() {
+          let speedButton = $("<button>Go</button>");
+          $(".container").append(speedButton);
+          let speedInput = $(
+            "<input type='text' placeholder='how many seconds should AI wait'>"
+          );
+          $(".container").append(speedInput);
+          let myThis = this;
+          $(speedButton).click(function () {
+            if (speedInput[0].value > 0)
+              myThis.speed = speedInput[0].value * 1000;
+            else myThis.speed = 0;
+            myThis.setUp();
+            myThis.play();
+          });
+        }
+        checkSunk(player, table1, table2) {
+          //go through totalOccupied
+          //iterate through all arrays
+          //if all elements in the array are not in positionArr, change color
+          //else just return
+          let myThis = this;
+          let count = 0;
+          for (let i in player.arr.totalOccupied) {
+            let myArr = player.arr.totalOccupied[i];
+            for (let j in myArr) {
+              if (player.positionArr.indexOf(myArr[j]) == -1) {
+                count++;
+              } else {
+                break;
+              }
+            }
+            if (count == myArr.length) {
+              for (let j in myArr) {
+                let row = Math.floor(myArr[j] / 10) + 1;
+                let column = (myArr[j] % 10) + 1;
+                table1.rows[row].cells[column].style.backgroundColor = "black";
+                table2.rows[row].cells[column].style.backgroundColor = "black";
+              }
+            }
+            count = 0;
+          }
+        }
+        #history(player, table1, table2, currPlayer) {
+          let myThis = this;
+          let history = $("<div></div>");
+          let arr = [".", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J"];
+          history.css({ "grid-column-start": "1", "grid-column-end": "3" });
+          $(history).append("History of steps: <br>");
+          if (player.type == "human") {
+            $(table1).click(function () {
+              const cell = event.target.closest("td");
+              const row = cell.parentElement;
+              const position = row.rowIndex * 10 + (cell.cellIndex - 1);
+              $(history).append(row.rowIndex + arr[cell.cellIndex] + ", ");
+              myThis.checkSunk(player, table1, table2);
+            });
+          } else {
+            document.addEventListener("ai", function (event) {
+              if (event.detail.player == currPlayer) {
+                $(history).append(
+                  event.detail.row + arr[event.detail.column] + ", "
+                );
+                myThis.checkSunk(player, table1, table2);
+                player.improveAI();
+              }
+            });
+          }
+          $(".container").append(history);
+        }
+        setUp() {
+          let hideButton = $("<button>Show/hide AI</button>");
+          hideButton.css({ "grid-column-start": "1", "grid-column-end": "3" });
+          $(".container").append(hideButton);
+
+          this.field1Player = new Field();
+          this.table1 = this.field1Player.createTable();
+          this.arr1 = this.field1Player.placeBattleships();
+
+          this.field1Opponent = new Field();
+          this.table2 = this.field1Opponent.createTable();
+
+          this.field2Player = new Field();
+          this.table3 = this.field2Player.createTable();
+          this.arr2 = this.field2Player.placeBattleships();
+
+          this.field2Opponent = new Field();
+          this.table4 = this.field2Opponent.createTable();
+
+          let myThis = this;
+          $(hideButton).click(function () {
+            $(myThis.table3[0]).toggle();
+            $(myThis.table4[0]).toggle();
+            $(count2).toggle();
+          });
+
+          //Human vs AI
+          this.myPlayer1 = new Human(this.table2, this.table3, this.arr2);
+          this.myPlayer2 = new AI(
+            this.table1,
+            this.table4,
+            this.arr1,
+            this.speed,
+            "player2"
+          );
+
+          //Human vs human
+          //this.myPlayer1 = new Human(this.table2, this.table3, this.arr2);
+          //this.myPlayer2 = new Human(this.table4, this.table1, this.arr1);
+
+          //AI vs AI
+          //this.myPlayer1 = new AI(this.table2, this.table3, this.arr2, this.speed, 'player1');
+          //this.myPlayer2 = new AI(this.table1, this.table4, this.arr1, this.speed, 'player2');
+
+          $(".container").append("Player 1: ");
+          this.#history(
+            this.myPlayer1,
+            this.table2[0],
+            this.table3[0],
+            "player1"
+          );
+          $(".container").append("<br>Player 2: ");
+          this.#history(
+            this.myPlayer2,
+            this.table4[0],
+            this.table1[0],
+            "player2"
+          );
+        }
+        #count(val2, player, currPlayer, switchedPlayer, count) {
+          let myPlayer;
+          if (val2 == "miss" && player.shootAgain == true) {
+            myPlayer = currPlayer;
+          } else if (val2 == "miss" && player.shootAgain == false) {
+            myPlayer = switchedPlayer;
+          } else if (val2 == "hit" && player.continueHitting == false) {
+            count++;
+            myPlayer = switchedPlayer;
+          } else if (val2 == "hit" && player.continueHitting == true) {
+            count++;
+            myPlayer = currPlayer;
+          }
+          return { count: count, player: myPlayer };
+        }
+        play() {
+          let player = "player1";
+          let count1 = 0,
+            count2 = 0;
+          let myThis = this;
+          //myThis.myPlayer1.play();
+          async function loop() {
+            while (count1 < 20 && count2 < 20) {
+              if (player == "player1") {
+                if (myThis.myPlayer1.type == "human") {
+                  //human
+                  let val1 = await myThis.myPlayer1.play();
+                  if (val1 == "hit") {
+                    count1++;
+                    player = "player1";
+                  } else player = "player2";
+                } else {
+                  //ai
+                  let val2 = await myThis.myPlayer1.play();
+                  let ai = myThis.#count(
+                    val2,
+                    myThis.myPlayer1,
+                    "player1",
+                    "player2",
+                    count1
+                  );
+                  count1 = ai.count;
+                  player = ai.player;
+                }
+              } else {
+                if (myThis.myPlayer2.type == "human") {
+                  //human
+                  let val1 = await myThis.myPlayer2.play();
+                  if (val1 == "hit") {
+                    count2++;
+                    player = "player2";
+                  } else player = "player1";
+                } else {
+                  //ai
+                  let val2 = await myThis.myPlayer2.play();
+                  let ai = myThis.#count(
+                    val2,
+                    myThis.myPlayer2,
+                    "player2",
+                    "player1",
+                    count2
+                  );
+                  count2 = ai.count;
+                  player = ai.player;
+                }
+              }
+              console.log("score", count1, count2);
+            }
+            if (count1 > count2) alert("PLAYER 1 WON");
+            else alert("PLAYER 2 WON");
+          }
+          loop();
+        }
+      }
+      const game = new Game();
+      game.createStartMenu();
+
+      /*
+        Create a simple sea battle game using JavaScript classes and jQuery where one AI (PC) plays against another one. The game should operate as follows:
+        
+        1. The screen should contain two fields. Fields should be rendered dynamically in .js without using canvas or images
+        2. Ships should be automatically and randomly located on each start.
+        3. AI should have a simple logic. For example, if there is a damaged ship on a field, PC should try to finish it.
+        4. You need to display the history for each PC step
+        5. The page should also have game options:
+            - The user should have an option to see the PC's ships if it's necessary. With this option fields first should be rendered as empty. While the game lasts we can see hit cells, damaged/sunk ships
+            - The user can configure the game speed
+        We'll use the following rules for the game:
+        
+        1. The field size should be 10x10
+        2. Each player should have the following ships:
+            battleship /four-decker /four-funnel (4) -	1 unit
+            cruiser /three-decker /three-funnel (3) -	2 units
+            destroyer /two-decker /two-funnel(2) -	3 units
+            submarine /single-decker /single-funnel(1) -	4 units
+        3. After the ships have been positioned, the game proceeds in a series of rounds. In each round, each PC player takes a turn to shot the opponent's grid cell. If the cell is occupied by a ship, the player who hits the cell should continue trying to sink the ship until he is missing. The player's turn ends if the cell is empty.
+        */
+    </script>
+  </body>
+</html>
